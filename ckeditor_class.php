@@ -218,6 +218,15 @@ class ckeditor_wordpress {
 			$q_config['js']['qtrans_disable_old_editor'] = '';
 			$q_config['js']['qtrans_hook_on_tinyMCE'] = 'qtrans_hook_on_tinyMCE = function(id) {};';
 		}
+		//if qTranslate-X plugin is enabled
+		if (is_plugin_active('qtranslate-x/qtranslate.php'))
+		{
+			$this->generate_js_options(false);
+			wp_enqueue_script( 'ckeditor', $this->ckeditor_path .'ckeditor.js?t='.$this->timestamp, array(), $this->version);
+			wp_enqueue_script( 'ckeditor.utils', $this->plugin_path . 'includes/ckeditor.utils.js?t='.$this->timestamp, array('ckeditor', 'jquery', 'qtranslate-admin-common'), $this->version);
+			$q_config['js']['qtrans_tinyMCEOverload'] = '';
+			$q_config['js']['qtrans_disable_old_editor'] = '';
+		}
 	}
 
 	public function user_personalopts_update() {
@@ -529,7 +538,12 @@ class ckeditor_wordpress {
 		}
 		wp_enqueue_script('editor');
 		wp_enqueue_script( 'ckeditor', $this->ckeditor_path .'ckeditor.js?t='.$this->timestamp, array(), $this->version);
-		wp_enqueue_script('ckeditor.utils', $this->plugin_path . 'includes/ckeditor.utils.js?t='.$this->timestamp, array('ckeditor', 'jquery'), $this->version);
+
+		$deps = array('ckeditor', 'jquery');
+		if (is_plugin_active('qtranslate-x/qtranslate.php')) {
+			$deps[] = 'qtranslate-admin-common';
+		}
+		wp_enqueue_script('ckeditor.utils', $this->plugin_path . 'includes/ckeditor.utils.js?t='.$this->timestamp, $deps, $this->version);
 
 		$this->generate_js_options(false);
 	}
@@ -665,6 +679,7 @@ class ckeditor_wordpress {
 			'autostart' => ($options['appearance']['default_state'] == 't' || $is_comment ? true : false),
 			'excerpt_state' => ($options['appearance']['excerpt_state'] == 't' ? true : false),
 			'qtransEnabled' => is_plugin_active('qtranslate/qtranslate.php'),
+			'qtranslateXEnabled' => is_plugin_active('qtranslate-x/qtranslate.php'),
 			'outputFormat' => array(
 				'indent' => ($options['advanced']['p_indent'] == 't' ? true : false),
 				'breakBeforeOpen' => ($options['advanced']['p_break_before_open'] == 't' ? true : false),

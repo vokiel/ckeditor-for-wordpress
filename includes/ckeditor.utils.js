@@ -76,7 +76,7 @@ jQuery(document).ready(function () {
 		}
 	}
 	//if qTranslate plugin enabled
-	if ( ckeditorSettings.qtransEnabled ){
+	if ( ckeditorSettings.qtransEnabled){
 		//custom version of switchEditors function when qTranslate plugin is enabled
 		if(typeof(window.switchEditors) != 'undefined') {
 			window.switchEditors.go = function(id, lang) {
@@ -167,7 +167,82 @@ jQuery(document).ready(function () {
 
 			window.tinyMCE = tinymce =  getTinyMCEObject();
 		}
-	}else {
+	}
+	// If qtranslate-X endabled
+	else if( ckeditorSettings.qtranslateXEnabled ) {
+		jQuery('#edButtonHTML').addClass('active');
+		jQuery('#edButtonPreview').removeClass('active');
+
+		if (jQuery('#' + ckeditorSettings.textarea_id).length && typeof CKEDITOR.instances[ckeditorSettings.textarea_id] == 'undefined') {
+			CKEDITOR.replace(ckeditorSettings.textarea_id, ckeditorSettings.configuration);
+			editorCKE = CKEDITOR.instances[ckeditorSettings.textarea_id];
+			//add afterCommandExec exect to last created CKEditor instance
+			editorCKE.on('afterCommandExec', function (ev) {
+				afterCommandEvent(ev);
+			});
+		}
+		window.tinyMCE = tinymce = getTinyMCEObject();
+
+		if (ckeditorSettings.textarea_id != 'comment') {
+			ckeditorSettings.configuration['on'].getData = function (evt) {
+				evt.data.dataValue = evt.data.dataValue.replace(/(^<\/p>)|(<p>$)/g, '');
+				evt.data.dataValue = evt.data.dataValue.replace(/^<p>(\s|\n|\r)*<p>/g, '<p>');
+				evt.data.dataValue = evt.data.dataValue.replace(/<\/p>(\s|\n|\r)*<\/p>(\s|\n|\r)*$/g, '<\/p>');
+			};
+
+			// Assign language switch listener
+			if (qTranslateConfig && qTranslateConfig.qtx) {
+				qTranslateConfig.qtx.addLanguageSwitchListener(function (to, from) {
+					var oldLanguage = jQuery('[name="qtranslate-fields[content][' + from + ']"]');
+					oldLanguage.val(editorCKE.getData());
+					var newContent = jQuery('[name="qtranslate-fields[content][' + to + ']"]').val();
+					tinyMCE.get(ckeditorSettings.textarea_id).execCommand('mceSetContent', 0, newContent);
+				});
+			}
+		}
+
+		if(typeof(window.switchEditors) != 'undefined') {
+			window.switchEditors.switchto = function (elm) {
+				var id = jQuery('#' + elm.id).closest('.wp-editor-wrap').find('textarea').attr('id') || 'content';
+				var direction = elm.id.replace('content-', '');
+				var inst = tinyMCE.get(id);
+				var wrap_id = 'wp-' + id + '-wrap';
+				var ta = document.getElementById(id);
+
+				if (inst && !inst.isHidden()) {
+					tinyMCE.triggerSave();
+				}
+
+				if (direction == 'html') {
+					if (inst && inst.isHidden()) {
+						return false;
+					}
+					if (inst) {
+						inst.hide();
+					}
+					jQuery("#" + wrap_id).removeClass('tmce-active');
+					jQuery("#" + wrap_id).addClass('html-active');
+					setUserSetting('editor', 'html');
+				}
+				else if (direction == 'tmce') {
+					if (inst && !inst.isHidden()) {
+						return false;
+					}
+					if (tinyMCEPreInit.mceInit[id] && tinyMCEPreInit.mceInit[id].wpautop) {
+						activeLangText = jQuery('[name="qtranslate-fields[content]['+ qTranslateConfig.activeLanguage + ']"]').val();
+						ta.value = this.wpautop(activeLangText);
+					}
+					if (inst && inst.isHidden()) {
+						inst.show();
+					}
+					jQuery("#" + wrap_id).removeClass('html-active');
+					jQuery("#" + wrap_id).addClass('tmce-active');
+					setUserSetting('editor', 'tinymce');
+				}
+			}
+		}
+	}
+	else {
 		if(ckeditorSettings.autostart && (typeof getUserSetting == 'undefined' || getUserSetting('editor') === '' || getUserSetting('editor') == 'tinymce')){
 			ckeditorOn();
 		}
@@ -263,7 +338,7 @@ function ckeditorOff(id) {
 	}
 }
 
-if ( !ckeditorSettings.qtransEnabled ){
+if ( !ckeditorSettings.qtransEnabled && !ckeditorSettings.qtranslateXEnabled ){
 	var tinymce = window.tinyMCE = getTinyMCEObject();
 }
 function getTinyMCEObject()
@@ -490,6 +565,9 @@ function getTinyMCEObject()
 						return;
 					}
 				}
+			},
+			editors : function(){
+				return CKEDITOR.instances;
 			}
 		};
 	return tinyMCE;
